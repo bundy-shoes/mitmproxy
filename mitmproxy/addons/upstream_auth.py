@@ -3,6 +3,7 @@ from mitmproxy import exceptions
 from mitmproxy import ctx
 from mitmproxy.utils import strutils
 from base64 import b64encode
+from re import sub
 
 
 def parse_upstream_auth(username, password):
@@ -60,6 +61,26 @@ class UpstreamAuth():
                           default='',
                           help="""""")
 
+        loader.add_option(name="upstream_lum_city",
+                          typespec=str,
+                          default='',
+                          help="""""")
+
+        loader.add_option(name="upstream_lum_country",
+                          typespec=str,
+                          default='',
+                          help="""""")
+
+        loader.add_option(name="upstream_lum_session",
+                          typespec=str,
+                          default='',
+                          help="""""")
+
+        loader.add_option(name="upstream_lum_state",
+                          typespec=str,
+                          default='',
+                          help="""""")
+
     def configure(self, updated):
         ctx.log.info(
             "\n--------------------------------configure addon--------------------------------\n"
@@ -69,7 +90,7 @@ class UpstreamAuth():
             self.fall_back = ctx.options.upstream_lum_auth_fall_back
 
         if "upstream_lum_auth_zone" in updated and ctx.options.upstream_lum_auth_zone:
-            self.zone = ctx.options.upstream_lum_auth_zone
+            self.zone = f"-zone-{ctx.options.upstream_lum_auth_zone}"
 
         if "upstream_lum_auth_password" in updated and ctx.options.upstream_lum_auth_password:
             self.password = ctx.options.upstream_lum_auth_password
@@ -84,35 +105,36 @@ class UpstreamAuth():
             self.state = f"-state-{str.lower(ctx.options.upstream_lum_state)}"
 
         if "upstream_lum_asn" in updated and ctx.options.upstream_lum_asn:
-            self.asn = f"-state-{ctx.options.upstream_lum_asn}"
+            self.asn = f"-asn-{ctx.options.upstream_lum_asn}"
 
         if "upstream_lum_city" in updated and ctx.options.upstream_lum_city:
-            self.city = f"-city-{ctx.options.upstream_lum_city}"
+            self.city = f"-city-{str.lower(ctx.options.upstream_lum_city)}"
 
         if "upstream_lum_session" in updated and ctx.options.upstream_lum_session:
-            self.session = ctx.options.upstream_lum_session
+            session = sub('[-\s:]', '', ctx.options.upstream_lum_session)
+            self.session = f"-session-{session}"
 
     @property
     def auth(self):
         ctx.log.info(
             "\n--------------------------------authenticate proxy request--------------------------------\n"
         )
-        username = f"lum-customer-{self.user_id}-zone-{self.zone}{self.fall_back}{self.country}{self.state}{self.city}{self.asn}-session-{self.session}"
+        username = f"lum-customer-{self.user_id}{self.zone}{self.fall_back}{self.country}{self.state}{self.city}{self.asn}{self.session}"
         return parse_upstream_auth(username=username, password=self.password)
 
     def http_connect(self, f: HTTPFlow):
         ctx.log.info(
             "\n--------------------------------http_connect--------------------------------\n"
         )
-        if f.mode == "upstream":
-            f.request.headers["Proxy-Authorization"] = self.get_auth(f)
+        if ctx.options.mode.startswith("upstream"):
+            f.request.headers["Proxy-Authorization"] = self.auth
 
     def requestheaders(self, f: HTTPFlow):
         ctx.log.info(
             "\n--------------------------------requestheaders--------------------------------\n"
         )
 
-        if f.mode == "upstream" and not f.server_conn.via:
+        if ctx.options.mode.startswith("upstream") and not f.server_conn.via:
             f.request.headers["Proxy-Authorization"] = self.auth
         elif ctx.options.mode.startswith("reverse"):
             f.request.headers["Proxy-Authorization"] = self.auth
