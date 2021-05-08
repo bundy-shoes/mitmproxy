@@ -5,7 +5,9 @@ ENV LANG=en_US.UTF-8
 ARG WHEEL_MITMPROXY
 ARG WHEEL_BASENAME_MITMPROXY
 
-COPY $WHEEL_MITMPROXY /home/mitmproxy/
+ENV HOME /home/mitmproxy
+
+COPY $WHEEL_MITMPROXY $HOME
 
 # Add our user first to make sure the ID get assigned consistently,
 # regardless of whatever dependencies get added.
@@ -24,16 +26,16 @@ RUN addgroup -S mitmproxy && adduser -S -G mitmproxy mitmproxy \
     python3-dev \
     && python3 -m ensurepip --upgrade \
     && pip3 install -U pip \
-    && LDFLAGS=-L/lib pip3 install -U /home/mitmproxy/${WHEEL_BASENAME_MITMPROXY} \
+    && LDFLAGS=-L/lib pip3 install -U $HOME/${WHEEL_BASENAME_MITMPROXY} \
     && apk del --purge \
     git \
     g++ \
     libffi-dev \
     openssl-dev \
     python3-dev \
-    && rm -rf ~/.cache/pip /home/mitmproxy/${WHEEL_BASENAME_MITMPROXY}
+    && rm -rf ~/.cache/pip $HOME/${WHEEL_BASENAME_MITMPROXY}
 
-VOLUME /home/mitmproxy/.mitmproxy
+VOLUME $HOME/.mitmproxy
 
 COPY release/docker/docker-entrypoint.sh /usr/local/bin/
 
