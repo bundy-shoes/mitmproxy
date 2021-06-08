@@ -37,6 +37,10 @@ RUN addgroup -S mitmproxy && adduser -S -G mitmproxy mitmproxy \
 
 VOLUME $HOME/.mitmproxy
 
+# HACK: the security context of the injected pod could be run as any user, therefore
+# all users must be able to write to the directory.
+RUN chmod -R 777 $HOME/.mitmproxy/
+
 COPY release/docker/docker-entrypoint.sh /usr/local/bin/
 
 COPY . /usr/mitmproxy
